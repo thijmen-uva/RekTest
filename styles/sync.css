@@ -42,6 +42,12 @@
   box-shadow: none;
 }
 
+body {
+  width: 100vw;
+  height: 100vh;
+  background: rgb(2,0,36);
+  background: radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(121,9,9,1) 180%, rgba(0,0,0,1) 100%);
+}
 
 .list_sync_area {
     grid-column: span 5;
@@ -186,6 +192,10 @@
     transition: 300ms;
   }
   
+  label {
+    color : white;
+    text-decoration-color: white;
+  }
   /* When the checkbox is checked, add a blue background */
   .container input:checked ~ .checkmark {
     background-color: var(--clr);

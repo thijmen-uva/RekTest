@@ -7,3 +7,5 @@ rekordbox_playlist.log
 Spotify.js
 spotify.log
 test.log
+/node_modules
+/Python
