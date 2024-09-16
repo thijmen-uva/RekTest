@@ -58,43 +58,72 @@ async function getSongById(id) {
     });
 }
 
-async function searchContents(title = '', artist = '') {
-    // console.log(`Searching for song with title: ${title} and artist: ${artist}`);
-    const titlePattern = title.replace(/[-()]/g, '.').toLowerCase(); // Replace '-' and '()' with '.' to match any character
-    const artistPattern = artist.replace(/[-()]/g, '.').toLowerCase(); // Replace '-' and '()' with '.' to match any character
-    const result_title_query = await djmdContent.findOne({
-        where: {
-            [Op.and]: [
-                sequelize.where(
-                    sequelize.fn(
-                        'LOWER',
-                        sequelize.fn(
-                            'REPLACE',
-                            sequelize.fn(
-                                'REPLACE',
-                                sequelize.fn('TRIM', sequelize.col('Title')),
-                                '(',
-                                ''
-                            ),
-                            ')',
-                            ''
-                        )
-                    ),
-                    {
-                        [Op.like]: `%${titlePattern}%`
-                    }
+async function searchContents(title = '', artists = []) {
+    
+const titlePattern = title.replace(/\(feat\..*?\)/i, '%').replace(/[-()[] /g, '%').toLowerCase();
+const artistConditions = artists.map(name => ({
+    [Op.like]: `%${name.trim().replace(/[-() ]/g, '%').toLowerCase()}%`
+}));
+
+const result_title_query = await djmdContent.findOne({
+    where: {
+        [Op.and]: [
+            sequelize.where(
+                sequelize.fn(
+                    'LOWER',
+                    sequelize.fn('TRIM', sequelize.col('Title'))
                 ),
                 {
-                    '$Artist.Name$': { [Op.like]: `%${artist}%` }
+                    [Op.like]: `%${titlePattern}%`
                 }
-            ]
-        },
-        include: [{ model: djmdArtist, as: 'Artist' }],
-        logging: false
-    });
+            ),
+            {
+                [Op.or]: artistConditions.map(condition => 
+                    sequelize.where(
+                        sequelize.fn('LOWER', sequelize.col('Artist.Name')),
+                        condition
+                    )
+                )
+            }
+        ]
+    },
+    include: [{ model: djmdArtist, as: 'Artist' }],
+    logging: false
+});
     return result_title_query;
 }
 
+async function addBulkToPlaylist(playlistID, contentIDs, trackNo = null) {
+    const playlistExists = await getPlaylistById(playlistID);
+    if (!playlistExists) {
+        throw new Error('Playlist does not exist');
+    }
+
+    const playlistItems = await getPlaylistItems(playlistID);
+    let insertIndex = trackNo ? trackNo : playlistItems.length + 1;
+
+    const songsToInsert = [];
+
+    for (const contentID of contentIDs) {
+        const songExists = await getSongById(contentID);
+        if (!songExists) {
+            console.log(`Song with ID ${contentID} does not exist, skipping.`);
+            continue;
+        }
+
+        // console.log(`Inserting song ${songExists.Title} into playlist ${playlistExists.Name} at position ${insertIndex}`);
+
+        const id = uuidv4().toString();
+        const uuid = uuidv4().toString();
+        songsToInsert.push({ ID: id, PlaylistID: playlistID, ContentID: contentID, TrackNo: insertIndex, UUID: uuid });
+
+        insertIndex++;
+    }
+
+    if (songsToInsert.length > 0) {
+        await djmdSongPlaylist.bulkCreate(songsToInsert);
+    }
+}
 async function addToPlaylist(playlistID, contentID, trackNo = null) {
     const songExists = await getSongById(contentID);
     const playlistExists = await getPlaylistById(playlistID);
@@ -156,4 +185,5 @@ module.exports = {
     getAllTables,
     getArtistName,
     addToPlaylist,
+    addBulkToPlaylist   
 };
