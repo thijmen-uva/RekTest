@@ -1,10 +1,14 @@
 const { Sequelize } = require('sequelize');
 const { Setup } = require('./setup');
 const sqlite3 = require('@journeyapps/sqlcipher').verbose();
+const os = require('os');
+const path = require('path');
+
+const appDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'Pioneer', 'rekordbox', 'master.db');
 
 const sequelize = new Sequelize({
         dialect: 'sqlite',
-        storage: 'C:/Users/thijm/AppData/Roaming/Pioneer/rekordbox/master.db',
+        storage: appDataPath,
         dialectModule: sqlite3,
         pool: {
             max: 5,
